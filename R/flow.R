@@ -1,9 +1,9 @@
-flow = function(i1,i2,i3){
+flow = function(i1,i2){
 
 
-  gx = i2#grad.x(i1,i2)
-  gy = i3# grad.y(i1,i2)
-  gt = i1#-grad.t(i1,i2)
+  gx = grad.x(i1,i2)
+  gy = grad.y(i1,i2)
+  gt = -grad.t(i1,i2)
 
   gxv = as.vector(gx)
   gyv = as.vector(gy)
@@ -56,28 +56,20 @@ flow = function(i1,i2,i3){
   return(list(result=result,mesh=mesh,ux=spdex.mean,v=spdey.mean))
 }
 
+
 grad.x = function(i1,i2){
   gx = array(0,dim(i1))
-  # gx[,1:dim(i1)[2]-1] = i1[,2:dim(i1)[2]]-i1[,1:dim(i1)[2]-1]
-  gx[,1:dim(i1)[2]-1] = 0.5 * ( i1[,2:dim(i1)[2]]-i1[,1:dim(i1)[2]-1] + i2[,2:dim(i1)[2]]-i2[,1:dim(i1)[2]-1] )
+  gx[1:dim(i1)[2]-1,] = 0.5 * ( i1[2:dim(i1)[2],]-i1[1:(dim(i1)[2]-1),] + i2[2:dim(i1)[2],]-i2[1:(dim(i1)[2]-1),] )
   return(gx)
 }
 
 grad.y = function(i1,i2){
   gy = array(0,dim(i1))
-  # gy[1:dim(i1)[2]-1,] = i1[2:dim(i1)[2],]-i1[1:dim(i1)[2]-1,]
-  gy[1:dim(i1)[2]-1,] = 0.5 * ( i1[2:dim(i1)[2],]-i1[1:dim(i1)[2]-1,] + i2[2:dim(i1)[2],]-i2[1:dim(i1)[2]-1,] )
+  gy[,1:dim(i1)[2]-1] = 0.5 * ( i1[,2:dim(i1)[2]]-i1[,1:(dim(i1)[2]-1)] + i2[,2:dim(i1)[2]]-i2[,1:(dim(i1)[2]-1)] )
   return(gy)
 }
+
 grad.t = function(i1,i2) {i2-i1}
-#
-# ## a graph on a file
-# cat("3 1 1 2 2 1 1 3 0\n", file="g.dat")
-# g = inla.read.graph("g.dat")
-# ## writing an inla.graph-object to file
-# g.file = inla.write.graph(g, mode="binary")
-# ## re-reading it from that file
-# gg = inla.read.graph(g.file)
 
 normalize = function(x) {
   return( (x-min(x))/(max(x)-min(x)))
