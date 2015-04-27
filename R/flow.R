@@ -1,4 +1,7 @@
-flow = function(i1,i2,lik.fix=0,compressible=TRUE){
+flow = function(i1, i2, lik.fix=0,
+                compressible=TRUE,
+                u.spde.args = "default",
+                v.spde.args = "default"){
 
 
   gx = grad.x(i1,i2)
@@ -26,17 +29,28 @@ flow = function(i1,i2,lik.fix=0,compressible=TRUE){
   lattice = inla.mesh.lattice(x=seq(1,ncol,length.out=mesh.ncol),y=seq(1,nrow,length.out=mesh.nrow))
   mesh = inla.mesh.create(lattice=lattice,extend=list(n=5),boundary=lattice$segm)
 
+  #
+  # Default SPDE parameterization
+  #
+
   sigma0 = 1
   kappa0 = 1e-3
   tau0 = 1/(4*pi*kappa0^2*sigma0^2)^0.5
 
-  spde.args = list(alpha=2, constr=FALSE,
-                   B.tau = cbind(log(tau0),0),
-                   B.kappa = cbind(log(kappa0),1))
-  #spde.args = list(alpha=2)
-  spde.mdlx = do.call(inla.spde2.matern,c(list(mesh=mesh),spde.args))
-  spde.mdly = do.call(inla.spde2.matern,c(list(mesh=mesh),spde.args))
+  if (is.character(u.spde.args) & ( u.spde.args == "default") ) {
+    u.spde.args = list(alpha=2, constr=FALSE,
+                     B.tau = cbind(log(tau0),0),
+                     B.kappa = cbind(log(kappa0),1))
+    }
 
+  if (is.character(v.spde.args) & ( v.spde.args == "default") ) {
+    v.spde.args = list(alpha=2, constr=FALSE,
+                       B.tau = cbind(log(tau0),0),
+                       B.kappa = cbind(log(kappa0),1))
+  }
+
+  spde.mdlx = do.call(inla.spde2.matern,c(list(mesh=mesh),u.spde.args))
+  spde.mdly = do.call(inla.spde2.matern,c(list(mesh=mesh),v.spde.args))
 
   formula = y ~ f(spdex, model=spde.mdlx) + f(spdey, model=spde.mdly) -1
 
