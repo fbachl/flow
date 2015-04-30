@@ -2,7 +2,7 @@ plot.flow = function(fl,scale=1) {
   grid = expand.grid(1:dim(fl$u)[1],1:dim(fl$u)[2])
   plot(x=NULL,y=NULL,xlim=c(1,dim(fl$u)[1]),ylim=c(1,dim(fl$u)[1]))
 
-  len = 0.7*normalize(as.vector(sqrt(fl$u^2+fl$v^2)))
+  len = 0.7*whiten(as.vector(sqrt(fl$u^2+fl$v^2)))
 
   invisible(mapply(arrows,
          as.vector(grid$Var1),
@@ -14,4 +14,8 @@ plot.flow = function(fl,scale=1) {
 
 mimage = function(x){
   image(t(x[rev(1:dim(x)[1]),]))
+}
+
+whiten = function(x) {
+  return( (x-min(x))/(max(x)-min(x)))
 }
