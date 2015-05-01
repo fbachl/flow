@@ -4,12 +4,12 @@ flow = function(i1, i2,
                  flow.mesh,
                  compressible=TRUE,
                  u.spde.args = "default",
-                 v.spde.args = "default"){
+                 v.spde.args = "default",
+                 delta = 1){
   #
   # Step 1: Determine locations for estimation of gradient
   #
   if (flow.mesh$manifold == "R2"){
-    delta = 1
     g.loc = flow.mesh$loc[,1:2]
     gx.loc = cbind(flow.mesh$loc[,1] + delta, flow.mesh$loc[,2])
     gy.loc = cbind(flow.mesh$loc[,1], flow.mesh$loc[,2] + delta)
@@ -23,7 +23,29 @@ flow = function(i1, i2,
     gy = as.vector( 0.5 * ( ( Agy %*% i1 - Ag %*% i1 ) + ( Agy %*% i2 - Ag %*% i2 ) ) )
     gt = as.vector( Ag %*% i2 - Ag %*% i1 )
 
+    grad = NULL
+
   } else if ( flow.mesh$manifold == "S2") {
+
+
+    grad = sphere.grad(data.mesh, flow.mesh, i1, i2, phi = delta)
+
+    plot(flow.mesh, rgl = TRUE, col = grad$gradt)
+    plot(flow.mesh, rgl = TRUE, col = grad$grad1)
+    plot(flow.mesh, rgl = TRUE, col = grad$grad2)
+
+    if(any(!(abs(norm(grad$eloc2)==1) - 1)<0.01)) {
+      stop("WTF")
+    }
+
+    g.loc = grad$loc
+    gx.loc = grad$g1.eloc
+    gy.loc = grad$g2.eloc
+    gt.loc = grad$loc
+
+    gx = grad$grad1
+    gy = grad$grad2
+    gt = grad$gradt
 
   } else {
     stop("Not implemented")
@@ -118,7 +140,8 @@ flow = function(i1, i2,
                 g.loc = g.loc,
                 gx.loc = gx.loc,
                 gy.loc = gy.loc,
-                gt.loc = gt.loc)
+                gt.loc = gt.loc,
+                grad = grad)
 
   class(result) = c("flow","list")
 
