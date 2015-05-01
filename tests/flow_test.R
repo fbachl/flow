@@ -24,7 +24,7 @@ flow.mesh = data.mesh
 
 # Run flow estimation
 
-fl = flow2(im1, im2,
+fl = flow(im1, im2,
            lik.fix = TRUE,
            data.mesh,
            flow.mesh,
