@@ -1,15 +1,15 @@
 plot.flow = function(fl,scale=1) {
-  grid = expand.grid(1:dim(fl$u)[1],1:dim(fl$u)[2])
-  plot(x=NULL,y=NULL,xlim=c(1,dim(fl$u)[1]),ylim=c(1,dim(fl$u)[1]))
+  plot.inla.mesh(fl$data.mesh,edge.color=rgb(0.7,0.7,0.7))
 
-  len = 0.7*whiten(as.vector(sqrt(fl$u^2+fl$v^2)))
+  vx = cbind(fl$u,fl$u) * (fl$gx.loc - fl$g.loc)
+  vy = cbind(fl$v,fl$v) * (fl$gy.loc - fl$g.loc)
 
-  invisible(mapply(arrows,
-         as.vector(grid$Var1),
-         as.vector(grid$Var2),
-         grid$Var1+scale*as.vector(fl$v),
-         grid$Var2+scale*as.vector(-fl$u),
-         length=0.1*len))
+  arrows(flow.mesh$loc[,1],
+         flow.mesh$loc[,2],
+         flow.mesh$loc[,1] + vx[,1] + vy[,1],
+         flow.mesh$loc[,2] + vx[,2] + vy[,2] ,
+         length = 0.1, col = "blue")
+
 }
 
 mimage = function(x){

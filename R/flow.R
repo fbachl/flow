@@ -1,33 +1,33 @@
-flow = function(i1, i2, lik.fix=0,
-                compressible=TRUE,
-                u.spde.args = "default",
-                v.spde.args = "default"){
+flow = function(i1, i2,
+                 lik.fix = TRUE,
+                 data.mesh,
+                 flow.mesh,
+                 compressible=TRUE,
+                 u.spde.args = "default",
+                 v.spde.args = "default"){
+  #
+  # Step 1: Determine locations for estimation of gradient
+  #
+  if (flow.mesh$manifold == "R2"){
+    delta = 1
+    g.loc = flow.mesh$loc[,1:2]
+    gx.loc = cbind(flow.mesh$loc[,1] + delta, flow.mesh$loc[,2])
+    gy.loc = cbind(flow.mesh$loc[,1], flow.mesh$loc[,2] + delta)
+    gt.loc = flow.mesh$loc
 
+    Agx = inla.spde.make.A(data.mesh, gx.loc)
+    Agy = inla.spde.make.A(data.mesh, gy.loc)
+    Ag = inla.spde.make.A(data.mesh, g.loc)
 
-  gx = grad.x(i1,i2)
-  gy = grad.y(i1,i2)
-  gt = -grad.t(i1,i2)
+    gx = as.vector( 0.5 * ( ( Agx %*% i1 - Ag %*% i1 ) + ( Agx %*% i2 - Ag %*% i2 ) ) )
+    gy = as.vector( 0.5 * ( ( Agy %*% i1 - Ag %*% i1 ) + ( Agy %*% i2 - Ag %*% i2 ) ) )
+    gt = as.vector( Ag %*% i2 - Ag %*% i1 )
 
-  imv = as.vector((i1+i2)/2)
-  gxv = as.vector(gx)
-  gyv = as.vector(gy)
-  y = as.vector(gt)
+  } else if ( flow.mesh$manifold == "S2") {
 
-  npix = length(gx)
-  nrow = dim(gx)[1]
-  ncol = dim(gx)[2]
-
-  loc.x = matrix(seq(1, nrow, len=nrow), nrow, ncol)
-  loc.y = matrix(seq(1, ncol, len=ncol), nrow, ncol, byrow=TRUE)
-
-
-
-  # Define lattice and mesh
-  #lattice = inla.mesh.lattice(x=1:ncol,y=1:nrow)
-  mesh.nrow = ncol
-  mesh.ncol = nrow
-  lattice = inla.mesh.lattice(x=seq(1,ncol,length.out=mesh.ncol),y=seq(1,nrow,length.out=mesh.nrow))
-  mesh = inla.mesh.create(lattice=lattice,extend=list(n=5),boundary=lattice$segm)
+  } else {
+    stop("Not implemented")
+  }
 
   #
   # Default SPDE parameterization
@@ -39,9 +39,9 @@ flow = function(i1, i2, lik.fix=0,
 
   if (is.character(u.spde.args) & ( u.spde.args == "default") ) {
     u.spde.args = list(alpha=2, constr=FALSE,
-                     B.tau = cbind(log(tau0),0),
-                     B.kappa = cbind(log(kappa0),1))
-    }
+                       B.tau = cbind(log(tau0),0),
+                       B.kappa = cbind(log(kappa0),1))
+  }
 
   if (is.character(v.spde.args) & ( v.spde.args == "default") ) {
     v.spde.args = list(alpha=2, constr=FALSE,
@@ -49,14 +49,15 @@ flow = function(i1, i2, lik.fix=0,
                        B.kappa = cbind(log(kappa0),1))
   }
 
-  spde.mdlx = do.call(inla.spde2.matern,c(list(mesh=mesh),u.spde.args))
-  spde.mdly = do.call(inla.spde2.matern,c(list(mesh=mesh),v.spde.args))
+  spde.mdlx = do.call(inla.spde2.matern,c(list(mesh=flow.mesh),u.spde.args))
+  spde.mdly = do.call(inla.spde2.matern,c(list(mesh=flow.mesh),v.spde.args))
 
   formula = y ~ f(spdex, model=spde.mdlx) + f(spdey, model=spde.mdly) -1
 
-  A = inla.spde.make.A(mesh, loc=cbind(as.vector(loc.x),y=as.vector(loc.y)))
-  Mx = A*matrix(gxv,npix,mesh$n)
-  My = A*matrix(gyv,npix,mesh$n)
+  A = inla.spde.make.A(flow.mesh, loc = flow.mesh$loc)
+
+  Mx = A * matrix(gx, length(gx), flow.mesh$n)
+  My = A * matrix(gy, length(gy), flow.mesh$n)
 
   if (compressible) {
     # Locations used to construct divergence
@@ -87,12 +88,12 @@ flow = function(i1, i2, lik.fix=0,
   }
 
 
-  #effects = list(y=y,spdex = as.vector(gx))
-  stk = inla.stack(data=list(y=y),A=list(Mx,My),tag="fpp",
-                   effects=list(spdex=1:spde.mdlx$n.spde,spdey=1:spde.mdly$n.spde))
-
-  #stk = inla.stack(data=list(y=y),A=list(Mx),tag="fpp",
-  #                 effects=list(spdex=1:spde.mdlx$n.spde))
+  stk = inla.stack(data = list(y = -gt),
+                   A = list(Mx,My),
+                   tag = "flow.tag",
+                   effects = list(spdex = 1:spde.mdlx$n.spde,
+                                  spdey = 1:spde.mdly$n.spde)
+  )
 
   lik.hyper = list(prec = list(prior = "loggamma",
                                param = c(1.0,0.01),
@@ -104,12 +105,21 @@ flow = function(i1, i2, lik.fix=0,
                 control.predictor=list(A=inla.stack.A(stk)),verbose=TRUE)
 
   spdex.mean = result$summary.ran[["spdex"]][["mean"]]
-  spdex.mean = matrix(spdex.mean[mesh$idx$lattice],mesh.ncol,mesh.nrow)
-
   spdey.mean = result$summary.ran[["spdey"]][["mean"]]
-  spdey.mean = matrix(spdey.mean[mesh$idx$lattice],mesh.ncol,mesh.nrow)
 
-  result = list(result=result,mesh=mesh,u=spdex.mean,v=spdey.mean,gx=gx,gy=gy,gt=gt)
+  result = list(result = result,
+                data.mesh = data.mesh,
+                flow.mesh = flow.mesh,
+                u=spdex.mean,
+                v=spdey.mean,
+                gx = gx,
+                gy = gy,
+                gt = gt,
+                g.loc = g.loc,
+                gx.loc = gx.loc,
+                gy.loc = gy.loc,
+                gt.loc = gt.loc)
+
   class(result) = c("flow","list")
 
   return(result)
@@ -133,3 +143,4 @@ grad.t = function(i1,i2) {i2-i1}
 normalize = function(x) {
   return( (x-min(x))/(max(x)-min(x)))
 }
+
