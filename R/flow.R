@@ -74,7 +74,7 @@ flow = function(i1, i2,
   spde.mdlx = do.call(inla.spde2.matern,c(list(mesh=flow.mesh),u.spde.args))
   spde.mdly = do.call(inla.spde2.matern,c(list(mesh=flow.mesh),v.spde.args))
 
-  formula = y ~ f(spdex, model=spde.mdlx) + f(spdey, model=spde.mdly) -1
+  formula = y ~ xb + yb + f(spdex, model=spde.mdlx) + f(spdey, model=spde.mdly) -1
 
   A = inla.spde.make.A(flow.mesh, loc = flow.mesh$loc)
 
@@ -111,9 +111,11 @@ flow = function(i1, i2,
 
 
   stk = inla.stack(data = list(y = -gt),
-                   A = list(Mx,My),
+                   A = list(1, 1, Mx, My),
                    tag = "flow.tag",
-                   effects = list(spdex = 1:spde.mdlx$n.spde,
+                   effects = list(xb = gx,
+                                  yb = gy,
+                                  spdex = 1:spde.mdlx$n.spde,
                                   spdey = 1:spde.mdly$n.spde)
   )
 
@@ -134,6 +136,8 @@ flow = function(i1, i2,
                 flow.mesh = flow.mesh,
                 u=spdex.mean,
                 v=spdey.mean,
+                ub = result$summary.fixed["xb","mean"],
+                vb = result$summary.fixed["yb","mean"],
                 gx = gx,
                 gy = gy,
                 gt = gt,

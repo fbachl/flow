@@ -3,8 +3,8 @@ plot.flow = function(fl, col, scale=1, manifold = fl$flow.mesh$manifold) {
 if ( manifold == "R2" ){
   plot.inla.mesh(fl$data.mesh,edge.color=rgb(0.7,0.7,0.7))
 
-  vx = cbind(fl$u,fl$u) * (fl$gx.loc - fl$g.loc)
-  vy = cbind(fl$v,fl$v) * (fl$gy.loc - fl$g.loc)
+  vx = cbind(fl$u+fl$ub,fl$u+fl$ub) * (fl$gx.loc - fl$g.loc)
+  vy = cbind(fl$v+fl$vb,fl$v+fl$vb) * (fl$gy.loc - fl$g.loc)
 
   arrows(flow.mesh$loc[,1],
          flow.mesh$loc[,2],
@@ -13,8 +13,8 @@ if ( manifold == "R2" ){
          length = 0.1, col = "blue")
   }
   else if ( manifold == "S2"){
-    u = fl$u
-    v = fl$v
+    u = fl$u + fl$ub
+    v = fl$v + fl$vb
 
     line.matrix = function(from,to){
       dfr = data.frame(from,to, NA,NA,NA,NA,NA,NA)
